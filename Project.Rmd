@@ -1,0 +1,362 @@
+---
+title: "Analyzing Greenhouse Gas Emissions Trends"
+output:
+  html_document:
+    df_print: paged
+---
+# Introduction
+
+Climate change is one of the biggest challenges we face today. It is reshaping the environment, affecting economies, and impacting communities all around the world. The main reason for this problem is the accumulation of greenhouse gases (GHGs) in the atmosphere gases like carbon dioxide (CO2), methane (CH4), nitrous oxide (N2O), and fluorinated gases, which trap heat and contribute to global warming. The consequences are increasingly evident: rising sea levels, more frequent and intense hurricanes and wildfires, prolonged droughts, and disruptions to biodiversity and human well-being. Human activities like burning fossil fuels, deforestation, industrial processes, agricultural practices, and waste management are the primary drivers of GHG emissions. Understanding where these emissions come from and how they have changed over time is crucial for developing effective strategies to mitigate their impact and build a more sustainable future. 
+
+This project analyzes greenhouse gas emissions in New York State from 1990 to 2022, using the dataset "Statewide Greenhouse Gas Emissions: Beginning 1990." By identifying trends and patterns, I gained deeper insights into the key sources of emissions and how they have evolved over time, ultimately contributing to more informed climate policies and action. 
+
+# Related Work
+
+Greenhouse gas (GHG) emissions have been a center point of climate change research, with multiple studies analyzing trends, drivers, and sectoral contributions. The study by Lamb et al. (2021) provides a comprehensive assessment of GHG emissions from 1990 to 2018 across five major economic sectors: energy systems, industry, buildings, transport, and agriculture, forestry, and other land uses [1]. Their findings reveal that emissions continue to rise, driven largely by population growth, increasing economic activity, and rising demand for energy and materials. Also, improvements in energy efficiency and renewable energy adoption have decreased emissions in some regions, fossil fuel reliance persists, particularly in industrializing nations. Also, another study by Lamb et al. (2022) analyzes 24 countries that successfully reduced both CO2 and total greenhouse gas (GHG) emissions between 1970 and 2018 [2]. The study identifies energy systems, particularly electricity and heat generation, as the main source of emissions reductions. The study shows the importance of energy sector decarbonization, structural energy shifts, and carbon intensity improvements, but also points to limited progress in non-energy sectors, such as transport.
+
+# Dataset Description
+
+The "Statewide Greenhouse Gas Emissions: Beginning 1990" dataset provides annual greenhouse gas (GHG) emissions data for New York State from 1990 to 2022. It categorizes emissions by major economic sectors, such as transportation, electricity generation, buildings, industry, and waste management, and includes specific greenhouse gases like carbon dioxide (CO₂), methane (CH₄), and nitrous oxide (N₂O).
+
+The dataset was obtained from Data.gov and is in CSV format, containing 13 columns and 18,183 rows. It offers a comprehensive overview of statewide emissions trends over three decades, making it a valuable resource for analyzing sectoral contributions and emission patterns over time.
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(dslabs)
+library(plotly)
+library(ggplot2)
+library(stringr)
+```
+```{r}
+emission <- read_csv("Statewide_Greenhouse_Gas_Emissions__Beginning_1990.csv")
+emission
+```
+```{r}
+str(emission)
+```
+
+```{r}
+colnames(emission)
+```
+
+```{r}
+sum(is.na(emission))
+
+```
+
+```{r}
+# clean dataset provided by LLM
+clean_emission<- read_csv("NY_GHG_Emissions_Cleaned.csv")
+```
+```{r}
+nrow(emission)
+
+nrow(clean_emission)
+```
+# Data Preprocessing and LLM Implementation
+
+To prepare the dataset for analysis, both manual data wrangling and Large Language Model (LLM) assistance were used during the preprocessing stage. First, the dataset was checked for missing values. An LLM-assisted prompt in GPT-4 was used to systematically scan the dataset and detect rows with missing or inconsistent entries. Fortunately, no major missing data issues were found across the key columns.
+
+After checking for missing values, I focused on two important columns: "MT CO2e AR5 20 yr" and "MT CO2e AR5 100 yr," which represent greenhouse gas emissions over different time frames. Using an LLM prompt, I found that both columns had a large number of rows with null values something that shouldn't have been. To clean this up, I used a prompt to ask the LLM to remove all the rows with null values in either of these two columns and provide a cleaned version of the dataset. Once the LLM returned the cleaned dataset, I manually validated the results by filtering the original data myself. I counted the rows with null values in those two columns, subtracted them from the total number of rows, and confirmed that the cleaned dataset matched perfectly.
+
+This process combining LLM assistance with manual validation made sure that the data was fully cleaned, accurate, and ready for the next steps in the analysis.
+
+# Exploratory Data Analysis (EDA) and Results
+
+After completing the data cleaning process, I began exploring the dataset to uncover overall emission patterns, major contributing sectors, and changes in emissions over time.
+
+### Analyzing how gas emission trends have changed over time
+
+
+```{r}
+data_by_year <- clean_emission %>%
+  group_by(Year) %>%
+  summarize(MT_CO2e_AR5_20_yr = sum(`MT CO2e AR5 20 yr`),
+            MT_CO2e_AR4_100_yr = sum(`MT CO2e AR5 100 yr`))
+data_by_year
+```
+
+```{r}
+year <- ggplot(data_by_year, aes(x = Year)) +
+  geom_line(aes(y = MT_CO2e_AR5_20_yr, color = "MT_CO2e_AR5_20_yr")) +
+  geom_line(aes(y = MT_CO2e_AR4_100_yr, color = "MT_CO2e_AR4_100_yr")) +
+  scale_color_manual(values = c("MT_CO2e_AR5_20_yr" = "red", "MT_CO2e_AR4_100_yr" = "blue")) +
+  labs(title = "Total Emissions over Time",
+       x = "Year",
+       y = "Total Emissions",
+       color = "Emissions Type")
+ggplotly(year)
+```
+
+To understand the overall emissions trend over time, total greenhouse gas emissions were first grouped by year and visualized using a line plot. When looking at greenhouse gas emissions over time , emissions peaked around the year 2000 and gradually declined afterward. The year 2020 recorded the lowest emissions, largely due to the COVID-19 pandemic. Lockdowns and reduced travel led to a sharp drop in oil, gas, and energy demand, especially in transportation and industry. According to the Global Carbon Project, global CO₂ emissions fell by about 7% in 2020, the largest decline since World War II. However, this drop was temporary. Sustained efforts are still necessary to achieve long-term reductions and effectively tackle climate change.
+
+## Analysis of Emissions by Economic Sector
+
+```{r}
+data_by_sector <- clean_emission %>%
+  group_by(`Economic Sector`) %>%
+  summarize(MT_CO2e_AR5_20_yr = sum(`MT CO2e AR5 20 yr`),
+            MT_CO2e_AR4_100_yr = sum(`MT CO2e AR5 100 yr`))
+data_by_sector  <- data_by_sector %>%
+  pivot_longer(cols = c("MT_CO2e_AR5_20_yr", "MT_CO2e_AR4_100_yr"), names_to = "emissions_type", values_to = "value")
+data_by_sector
+```
+```{r}
+# create a bar chart with two bars for each economic sector
+ggplot(data_by_sector, aes(x = `Economic Sector`, y = value, fill = emissions_type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Total Emissions by Economic Sector") +
+  xlab("Economic Sector") +
+  ylab("Total Emissions") +
+  scale_fill_manual(values = c("#0072B2", "#D55E00"), labels = c("MT_CO2e_AR4_100_yr", "MT_CO2e_AR5_20_yr"))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+Exploring emissions by economic sector provided more detailed insights. By summarizing emissions for each sector and visualizing them with stacked bar plots, it became clear that the Building and Transportation sectors were the two largest contributors to total emissions, with nearly equal shares. The Electricity and Industry sectors followed but at slightly lower levels. A comparison between short-term ("MT CO2e AR5 20 yr") and long-term ("MT CO2e AR4 100 yr") global warming potential (GWP) emissions revealed that buildings contributed more significantly to 20-year GWP emissions, while transportation's long-term impact was greater over the 100-year horizon. Notably, a subset of sectors showed negative net emissions, indicating activities where more carbon was absorbed than emitted  a positive signal for carbon sequestration efforts
+
+
+
+## Visualizing the Contribution of Different Gases to Global Greenhouse Gas Emissions
+
+```{r}
+# Calculate total emissions for each gas
+total_gas_emissions <- clean_emission %>%
+  group_by(Gas) %>%
+  summarize("MT_CO2e_AR5_20_yr" = sum(`MT CO2e AR5 20 yr`),
+            "MT_CO2e_AR4_100_yr" = sum(`MT CO2e AR5 100 yr`))
+ gas_emissions <- total_gas_emissions %>%
+  pivot_longer(cols = c("MT_CO2e_AR5_20_yr", "MT_CO2e_AR4_100_yr"), names_to = "emissions_type", values_to = "value")
+
+# View emissions
+print(gas_emissions)
+```
+
+```{r}
+# Create a bar graph
+ggplot(gas_emissions, aes(x = Gas, y = value, fill = emissions_type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Gases", y = "Emission Value", fill = "Emissions Category") +
+  ggtitle("Gas Emissions") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+To further understand the role of different greenhouse gases, emissions were summarized by gas type. Bar plots highlighted that carbon dioxide (CO₂) is the largest contributor to total emissions, followed by methane (CH₄). Other gases like NF₃ had very low emissions. While most gases had similar emissions over both the 20-year and 100-year GWP timeframes, CH₄ and HFCs were noticeably higher in the 20-year GWP, highlighting their stronger short-term climate impact.
+
+## Tracking Greenhouse Gas Trends Over Time
+
+```{r}
+# Group the data by year and sum the emissions for each gas
+emissions_summed <- clean_emission %>%
+  group_by(Year, Gas) %>%
+  summarize(Total_Emissions = sum(`MT CO2e AR5 20 yr`))
+emissions_summed
+```
+```{r}
+# Pivot the data to have each gas as a column
+emissions_pivoted <- emissions_summed %>%
+  pivot_wider(names_from = Gas, values_from = Total_Emissions)
+emissions_pivoted
+```
+
+```{r}
+# Plot the data
+year <- ggplot(emissions_pivoted, aes(x = Year)) +
+  geom_line(aes(y = `biogenic CO2`, color = "biogenic CO2")) +
+  geom_line(aes(y = `Biogenic CO2`, color = "Biogenic CO2")) +
+  geom_line(aes(y = CH4, color = "CH4")) +
+  geom_line(aes(y = CO2, color = "CO2")) +
+  geom_line(aes(y = HFCs, color = "HFCs")) +
+  geom_line(aes(y = N2O, color = "N2O")) +
+  geom_line(aes(y =  NF3, color = "NF3")) +
+  geom_line(aes(y = PFCs, color = "PFCs")) +
+  geom_line(aes(y =  SF6, color = "SF6")) +
+  scale_color_manual(values = c("biogenic CO2" = "red", "Biogenic CO2" = "blue", "CH4" = "orange", "CO2" = "pink", "HFCs" = "lightblue", "N2O" = "violet","NF3" = "green" ,"PFCs" = "purple","SF6" = "yellow")) +
+  labs(title = "Total Emissions over Time",
+       x = "Year",
+       y = "Total Emissions",
+       color = "Emissions Type")
+ggplotly(year)
+```
+
+The line graphs show that CO₂ emissions stayed highest over time but began declining after 2000. CH₄ emissions remained relatively constant, while other gases like N₂O and HFCs had much smaller and steadier contributions. Overall, while CO₂ dominates long-term emissions, short-lived gases like CH₄ are critical for near-term climate action
+
+
+```{r}
+emission %>%
+  filter(Gas == "HFCs") %>%
+  distinct(`Economic Sector`, Category, `Sub-Category 1`, `Sub-Category 2`)
+```
+
+
+
+## Emission of Gases from Economic Sectors
+
+```{r}
+sector_category <- clean_emission %>%
+  group_by(Gas, `Economic Sector`) %>%
+  summarize(Total_emissions = sum(`MT CO2e AR5 20 yr`))
+ggplot(sector_category, aes(x=Gas, y=`Economic Sector`, fill=Total_emissions)) +
+  geom_tile() +
+  scale_fill_gradient(low="white", high="#1e489f") +
+  labs(title="Total Emissions by Gas and Economic Sector", x="Gas", y="Economic Sector")+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+To visualize emissions across both sectors and gases simultaneously, a heatmap was created. This approach helped reveal nuanced patterns: Transportation, Buildings, Industry, and Electricity sectors had the highest emissions, predominantly due to Fuel Combustion and Imported Fossil Fuels. Agriculture's major contributions came from Livestock and Soil Management activities, while the Waste sector was a significant source of emissions from Solid Waste Management and Wastewater processes. This level of detail offers valuable insights for policymakers in identifying specific activities within sectors that contribute most heavily to emissions.
+
+## Total Emissions by Emission Sector and Category
+
+
+```{r}
+sector_category <- clean_emission %>%
+  group_by(`Economic Sector`, Category) %>%
+  summarize(Total_emissions = sum(`MT CO2e AR5 20 yr`))
+ggplot(sector_category, aes(x=`Economic Sector`, y=Category, fill=Total_emissions)) +
+  geom_tile() +
+  scale_fill_gradient(low="white", high="red") +
+  labs(title="Total Emissions by Sector and Category", x="Emission Sector", y="Category")+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+By visualizing the emissions by category for each sector, the plot allows for a comparison of the relative contribution of each category to the total emissions of each sector. Each tile in the plot represents the total emissions for a particular economic sector and emission category combination. The color of each tile represents the magnitude of the total emissions, with darker colors indicating higher emissions. 
+Transportation, Buildings, Industry and Electricity sectors have the highest total emissions in  Fuel Combustion and Imported Fossil Fuels. Electricity and industry have emissions in other category also. Agriculture has the highest  emission in Livestock and Soil Management. Waste sector emits high from Solid Waste Management and it also emits from Wastewater and Waste Combustion categorys.
+This information can be useful for identifying the sectors and categories that are responsible for the most emissions and targeting efforts to reduce emissions in those areas.
+
+## Analysis of Greenhouse Gas Emissions by Economic Sector and Gas Type
+
+```{r}
+gas_by_sector <- clean_emission %>%
+  group_by(`Economic Sector`, Gas) %>%
+  summarise(total_emission = `MT CO2e AR5 20 yr`)
+gas_by_sector
+```
+```{r}
+sectorgases <- ggplot(gas_by_sector, aes(x = `Economic Sector`, y = total_emission, fill = Gas)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Total Emissions of Economic Sector by each gas") +
+  xlab("Economic Sector") +
+  ylab("Total Emissions") +
+  scale_fill_manual(values = c("#062B42", "#0B5584", "#6D99B5", "#CEDDE6", "#7A540E", "#F4A71C", "#F8CA77", "#FDEDD2", "#F6F8F8"))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+ggplotly(sectorgases)
+```
+
+
+```{r}
+overall <- clean_emission %>%
+  group_by(`Economic Sector`, Year) %>%
+  summarise(Gas_Emissions = sum(`MT CO2e AR5 20 yr`))
+overall
+```
+## Trends in greenhouse gas emissions for each economic sector over time
+
+
+```{r}
+
+
+overall <- clean_emission %>%
+  group_by(`Economic Sector`, Year) %>%
+  summarize(Gas_Emissions = sum(`MT CO2e AR5 20 yr`, na.rm = TRUE)) %>%
+  ungroup()
+
+
+sector_colors <- c(
+  "Agriculture" = "#E76F51",
+  "Buildings" = "#2A9D8F",
+  "Electricity" = "#264653",
+  "Excluded" = "#F4A261",
+  "Industry" = "#E9C46A",
+  "Net Emissions" = "#457B9D",
+  "Transportation" = "#A8DADC",
+  "Waste" = "#1D3557"
+)
+
+
+overall_each_sector <- ggplot(overall, aes(x = Year, y = Gas_Emissions, color = `Economic Sector`)) +
+  geom_line(size = 1) +
+  facet_wrap(~ `Economic Sector`, scales = "free_y") +
+  scale_color_manual(values = sector_colors) +
+  labs(
+    title = "GHG Emissions Trend by Economic Sector",
+    x = "Year",
+    y = "Gas Emissions (MT CO2e AR5 20 yr)",
+    color = "Economic Sector"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"
+  )
+
+ggplotly(overall_each_sector)
+
+```
+
+Emission trends for each sector were visualized . The time-series plots show that Agriculture and Net Emissions steadily increased over time, even through the 2020 pandemic. Buildings emissions peaked around 2000–2004 before declining, while Transportation emissions rose until 2006 and then dropped sharply, particularly in 2020. Waste emissions decreased after 2010 but have begun rising again, whereas Electricity and Industry sectors showed consistent long-term declines. Overall, the visualizations provide both a sectoral snapshot and a timeline of how emissions patterns have shifted over the years.
+
+
+
+```{r}
+subcat2_total <- clean_emission %>%
+  group_by(`Sub-Category 2`) %>%
+  summarise(Total_Emissions = sum(`MT CO2e AR5 20 yr`, na.rm = TRUE)) %>%
+  arrange(desc(Total_Emissions)) %>%
+  slice_head(n = 10)  # Top 10 only
+
+ggplot(subcat2_total, aes(x = reorder(`Sub-Category 2`, Total_Emissions), y = Total_Emissions, fill = `Sub-Category 2`)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(
+    title = "Top 10 Sub-Category 2 Contributors to Emissions",
+    x = "Sub-Category 2",
+    y = "Total Emissions (MT CO2e - 20 yr GWP)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+
+```
+## Sector-Wise Percentage Change in Emissions (1990–2022)
+
+```{r}
+
+sector_change <- clean_emission %>%
+  group_by(`Economic Sector`, Year) %>%
+  summarize(Total_Emissions = sum(`MT CO2e AR5 20 yr`, na.rm = TRUE)) %>%
+  filter(Year %in% c(min(Year), max(Year))) %>%
+  pivot_wider(names_from = Year, values_from = Total_Emissions, names_prefix = "Year_") %>%
+  mutate(
+    Total_Change = Year_2022 - Year_1990,
+    Percent_Change = (Total_Change / Year_1990) * 100
+  ) %>%
+  arrange(Percent_Change)
+
+ggplot(sector_change, aes(x = reorder(`Economic Sector`, Percent_Change), y = Percent_Change, fill = Percent_Change < 0)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_manual(values = c("TRUE" = "#1e489f", "FALSE" = "#e63946")) +
+  labs(
+    title = "Most Improved Sectors (1990–2022)",
+    x = "Economic Sector",
+    y = "Percentage Change in Emissions"
+  ) +
+  theme_minimal(base_size = 13) +
+  geom_text(aes(label = sprintf("%.1f%%", Percent_Change)), hjust = ifelse(sector_change$Percent_Change < 0, 1.1, -0.1), color = "black")
+
+```
+
+Percentage changes in emissions from 1990 to 2022 were calculated  and visualized . The chart shows that Agriculture and Buildings sectors had the largest increases, rising by about 37% and 11%, respectively. Meanwhile, Waste, Electricity, and Industry sectors achieved notable reductions, with Electricity decreasing emissions by nearly 10%. Transportation, Excluded, and Net Emissions sectors showed smaller declines. These results highlight areas of progress as well as sectors where stronger mitigation efforts are still needed.
+
+# Conclusion
+
+This analysis of greenhouse gas emissions revealed key patterns across sectors, gases, and time. CO₂ remains the largest contributor to global warming, followed by CH₄ and HFCs. Transportation, Buildings, Industry, and Electricity sectors account for the majority of emissions, with Transportation leading in CO₂ output. Although CH₄ emissions are lower in quantity, their short-term climate impact is stronger, emphasizing the need to target multiple gases in mitigation strategies.
+
+The role of Net Emissions, with some sectors absorbing more carbon than emitting, points to the importance of land-based solutions like afforestation. While the pandemic-induced drop in 2020 emissions demonstrated how behavior changes can impact the environment, it was a temporary event. Sustained, long-term efforts across major sectors are essential to achieving meaningful climate goals.
+
+Expanding this analysis in the future could involve studying policy impacts, exploring emerging technologies like renewables and carbon capture, and incorporating additional sectors such as aviation and marine transportation. Including other greenhouse gases like ozone and aerosols, as well as analyzing data from more recent years and different regions, would provide a more complete understanding of global emission patterns and support stronger climate action worldwide.
+
+# References
+1. Lamb, William F., et al. "A review of trends and drivers of greenhouse gas emissions by sector from 1990 to 2018." Environmental research letters 16.7 (2021): 073005.
+
+2. Lamb, William F., et al. "Countries with sustained greenhouse gas emissions reductions: an analysis of trends and progress by sector." Climate Policy 22.1 (2022): 1-17.
+
